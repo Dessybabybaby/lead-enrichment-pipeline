@@ -1,0 +1,26 @@
+json
+{
+  "name": "john doe",
+  "email": "john.doe@techcorp.io",
+  "company": "TechCorp",
+  "role": "VP Engineering",
+  "source": "webinar signup",
+  "emailValid": true,
+  "emailScore": 95,
+  "industry": "Information Technology",
+  "companySize": "51-200",
+  "revenue": "$10M-$50M",
+  "techStack": ["AWS", "React", "Node.js", "PostgreSQL", "Redis"],
+  "fitScore": 85,
+  "grade": "A - Hot Lead",
+  "scoreBreakdown": [
+    "Valid email: +20",
+    "Good company size: +15",
+    "Decision maker: +30",
+    "Target industry: +15",
+    "Medium revenue: +5"
+  ],
+  "assignedRep": "Lisa (Mid-Market)",
+  "status": "New",
+  "enrichedAt": "2026-01-18T12:30:00Z"
+}
