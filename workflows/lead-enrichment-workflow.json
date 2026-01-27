@@ -1,0 +1,391 @@
+{
+  "name": "lead-enrichment-workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-enrichment",
+        "options": {}
+      },
+      "id": "1354acce-d167-4a1e-8172-ba46c54cefa8",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -2768,
+        224
+      ],
+      "webhookId": "230df3d9-cd68-4e87-92f2-e19ff621a9c7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const data = item.json.body || item.json;\n  \n  const email = (data.email || '').toLowerCase().trim();\n  const company = (data.company || 'Unknown Company').trim();\n  const role = (data.role || 'Unknown').trim();\n  const source = (data.source || 'Unknown').trim();\n  const domain = email.includes('@') ? email.split('@')[1] : '';\n\n  // Name extraction\n  let name = data.name || '';\n  if (!name && email) {\n    const emailLocal = email.split('@')[0];\n    name = emailLocal.replace(/[._-]/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');\n  }\n\n  // Industry Detection\n  let industry = 'Unknown';\n  const companyLower = company.toLowerCase();\n  if (companyLower.match(/tech|software|digital|cloud|ai|data/)) industry = 'Technology';\n  else if (companyLower.match(/bank|finance|invest|capital|credit/)) industry = 'Finance';\n  else if (companyLower.match(/health|medical|pharma|clinic/)) industry = 'Healthcare';\n\n  // Company Size Detection\n  let companySize = '51-200'; \n  const largeCompanies = ['microsoft', 'google', 'amazon', 'apple', 'meta', 'salesforce', 'oracle', 'ibm', 'cisco', 'intel', 'nvidia', 'adobe'];\n  if (largeCompanies.some(large => domain.includes(large))) {\n    companySize = '1000+';\n  } else if (domain.match(/gmail|yahoo|hotmail|outlook/)) {\n    companySize = '1-10';\n  }\n\n  // --- SCORING LOGIC ---\n  let score = 0;\n\n  // 1. Email Quality (Max 20)\n  if (email.includes('@')) {\n    score += 10; \n    if (!domain.match(/gmail|yahoo|outlook|hotmail/)) {\n      score += 10; \n    }\n  }\n\n  // 2. Industry Fit (Max 20)\n  if (industry === 'Technology' || industry === 'Finance') {\n    score += 20;\n  } else if (industry !== 'Unknown') {\n    score += 10;\n  }\n\n  // 3. Role Authority (Max 40)\n  const roleLower = role.toLowerCase();\n  if (roleLower.match(/chief|ceo|cto|cfo|owner|founder|president/)) {\n    score += 40;\n  } else if (roleLower.match(/vp|director|head|lead/)) {\n    score += 30;\n  } else if (roleLower.match(/manager|consultant|strategist/)) {\n    score += 20;\n  } else {\n    score += 5; \n  }\n\n  // 4. Company Size (Max 20) - CORRECTED FOR MID-TIER\n  if (companySize === '1000+') {\n    score += 20; // High Fit\n  } else if (companySize === '51-200') {\n    score += 15; // Mid Fit (Corrected from 20)\n  } else {\n    score += 10; // Low Fit (1-10)\n  }\n\n  // Assignment Logic\n  let assignedRep = 'Mike (SMB)';\n  if (companySize === '1000+') assignedRep = 'Sarah (Enterprise)';\n  else if (companySize === '51-200') assignedRep = 'Lisa (Mid-Market)';\n\n  return {\n    json: {\n      \"Timestamp\": new Date().toLocaleString(),\n      \"Name\": name,\n      \"Email\": email,\n      \"Company\": company,\n      \"Role\": role,\n      \"Source\": source,\n      \"Email Valid\": /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) ? 'Valid' : 'Invalid',\n      \"Industry\": industry,\n      \"Company Size\": companySize,\n      \"Fit Score\": score,\n      \"Assigned Rep\": assignedRep\n    }\n  };\n});"
+      },
+      "id": "a69dce20-e664-4806-8353-f7ecd3135e93",
+      "name": "Extract & Validate Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2544,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const lead = item.json;\n  let score = 0;\n  let scoreBreakdown = [];\n  \n  // 1. Email Validity (15 points)\n  if (lead[\"Email Valid\"] === 'Valid') {\n    score += 15;\n    scoreBreakdown.push('Valid email format: +15');\n    \n    // Bonus for corporate email\n    const domain = lead[\"Email\"]?.split('@')[1] || '';\n    if (domain && !domain.match(/gmail|yahoo|hotmail|outlook/)) {\n      score += 10;\n      scoreBreakdown.push('Corporate email: +10');\n    }\n  }\n  \n  // 2. Company Size (25 points max) - CORRECTED\n  const size = lead[\"Company Size\"];\n  if (size === '201-500' || size === '501-1000') {\n    score += 25;\n    scoreBreakdown.push('Ideal company size (201-1000): +25');\n  } else if (size === '1000+') {\n    score += 18;\n    scoreBreakdown.push('Enterprise size: +18');\n  } else if (size === '51-200') {\n    score += 15; // CORRECTED: Moved to Mid-Tier\n    scoreBreakdown.push('Mid-Market size (51-200): +15');\n  } else if (size === '11-50') {\n    score += 10;\n    scoreBreakdown.push('Small company: +10');\n  } else if (size === '1-10') {\n    score += 5;\n    scoreBreakdown.push('Very small company: +5');\n  }\n  \n  // 3. Role Analysis (30 points max)\n  const role = (lead[\"Role\"] || '').toLowerCase();\n  if (role.match(/ceo|cto|cfo|coo|chief|owner|founder/)) {\n    score += 30;\n    scoreBreakdown.push('Executive/Owner level: +30');\n  } else if (role.match(/vp|vice president|director|head of/)) {\n    score += 25;\n    scoreBreakdown.push('VP/Director level: +25');\n  } else if (role.match(/manager|lead|consultant/)) {\n    score += 15;\n    scoreBreakdown.push('Manager/Lead/Consultant: +15');\n  } else if (role.match(/senior|sr\\.|sr /)) {\n    score += 10;\n    scoreBreakdown.push('Senior role: +10');\n  } else if (role !== 'unknown') {\n    score += 5;\n    scoreBreakdown.push('Identified role: +5');\n  }\n  \n  // 4. Industry (20 points max)\n  const industry = lead[\"Industry\"];\n  if (industry === 'Technology') {\n    score += 20;\n    scoreBreakdown.push('Target industry (Tech): +20');\n  } else if (industry === 'Finance' || industry === 'Healthcare') {\n    score += 15;\n    scoreBreakdown.push('High-value industry: +15');\n  } else if (industry === 'Manufacturing' || industry === 'Retail') {\n    score += 10;\n    scoreBreakdown.push('Secondary industry: +10');\n  } else if (industry !== 'Unknown') {\n    score += 5;\n    scoreBreakdown.push('Identified industry: +5');\n  }\n  \n  // 5. Source Quality (10 points max)\n  const source = (lead[\"Source\"] || '').toLowerCase();\n  if (source.includes('referral')) {\n    score += 10;\n    scoreBreakdown.push('Referral source: +10');\n  } else if (source.match(/webinar|event/)) {\n    score += 8;\n    scoreBreakdown.push('Engaged source (webinar/event): +8');\n  } else if (source.match(/linkedin|website/)) {\n    score += 5;\n    scoreBreakdown.push('Inbound source: +5');\n  } else if (source.includes('cold')) {\n    score += 2;\n    scoreBreakdown.push('Cold outreach: +2');\n  }\n\n  // 6. Assign Rep\n  let assignedRep = 'Mike (SMB)';\n  if (size === '501-1000' || size === '1000+') {\n    assignedRep = 'Sarah (Enterprise)';\n  } else if (size === '51-200' || size === '201-500') {\n    assignedRep = 'Lisa (Mid-Market)';\n  }\n\n  // Return data matching Airtable/Sheet Exactly\n  return {\n    json: {\n      \"Timestamp\": lead[\"Timestamp\"],\n      \"Name\": lead[\"Name\"],\n      \"Email\": lead[\"Email\"],\n      \"Company\": lead[\"Company\"],\n      \"Role\": lead[\"Role\"],\n      \"Source\": lead[\"Source\"],\n      \"Email Valid\": lead[\"Email Valid\"],\n      \"Industry\": lead[\"Industry\"],\n      \"Company Size\": lead[\"Company Size\"],\n      \"Fit Score\": score,\n      \"Assigned Rep\": assignedRep,\n      \"Score Breakdown\": scoreBreakdown.join('\\n')\n    }\n  };\n});"
+      },
+      "id": "4b77dffd-fdd2-4300-96ef-26f2f6afd3af",
+      "name": "Calculate Fit Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2320,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU",
+          "mode": "list",
+          "cachedResultName": "Lead Enrichment Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Lead",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $json.Timestamp }}",
+            "Name": "={{ $json.Name }}",
+            "Email": "={{ $json.Email }}",
+            "Company": "={{ $json.Company }}",
+            "Role": "={{ $json.Role }}",
+            "Source": "={{ $json.Source }}",
+            "Industry": "={{ $json.Industry }}",
+            "EmailValid": "={{ $json['Email Valid'] }}",
+            "CompanySize": "={{ $json['Company Size'] }}",
+            "FitScore": "={{ $json['Fit Score'] }}",
+            "AssignedRep": "={{ $json['Assigned Rep'] }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Role",
+              "displayName": "Role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source",
+              "displayName": "Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "EmailValid",
+              "displayName": "EmailValid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CompanySize",
+              "displayName": "CompanySize",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FitScore",
+              "displayName": "FitScore",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AssignedRep",
+              "displayName": "AssignedRep",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ebf36466-1103-4d89-8281-57603773e1d5",
+      "name": "Add Lead to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [
+        -2096,
+        224
+      ],
+      "retryOnFail": false,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "fXw0DS6oipuBkOKi",
+          "name": "Google Sheets account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.error }}",
+              "operation": "isEmpty"
+            }
+          ]
+        }
+      },
+      "id": "75c1037e-d049-4d5d-a942-f1eb38b726ae",
+      "name": "Check If Successful",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -1872,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "name": "notificationMessage",
+              "value": "=New Lead: {{ $json[\"Name\"] }}\nEmail: {{ $json[\"Email\"] }}\nCompany: {{ $json[\"Company\"] }} ({{ $json['CompanySize'] }})\nRole: {{ $json[\"Role\"] }}\nFit Score: {{ $json[\"FitScore\"] }}/100\nIndustry: {{ $json[\"Industry\"] }}\nSource: {{ $json[\"Source\"] }}\nAssigned Rep: {{ $json[\"AssignedRep\"] }}",
+              "type": "string",
+              "id": "cb2b0ab9-0ef0-4a73-913f-e3ae4921bce0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1536888-167c-44ba-9106-0377b6f3b4d8",
+      "name": "Format Notification Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1648,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "achusidesmond4@gmail.com",
+        "subject": "=New Lead: {{ $node[\"Calculate Fit Score\"].json[\"Fit Score\"] }} - {{ $node[\"Calculate Fit Score\"].json[\"Company\"] }}",
+        "message": "=<h2>New Lead Enriched</h2>\n\n<table style=\"border-collapse: collapse; width: 100%;\">\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Name:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Name\"] }}</td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Email:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Email\"] }}</td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Company:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Company\"] }} ({{ $('Calculate Fit Score').item.json[\"Company Size\"] }})</td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Role:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Role\"] }}</td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Industry:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Industry\"] }}</td>\n\n  </tr>\n\n  <tr style=\"background-color: #f0f8ff;\">\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Fit Score:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd; font-size: 18px; color: #0066cc;\"><strong>{{ $('Calculate Fit Score').item.json[\"Fit Score\"] }}/100</strong></td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Assigned To:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Assigned Rep\"] }}</td>\n\n  </tr>\n\n  <tr>\n\n    <td style=\"padding: 8px; font-weight: bold; border: 1px solid #ddd;\">Source:</td>\n\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $('Calculate Fit Score').item.json[\"Source\"] }}</td>\n\n  </tr>\n\n</table>\n\n\n\n<h3>Score Breakdown:</h3>\n\n<pre style=\"background: #f5f5f5; padding: 10px; border-radius: 5px; border: 1px solid #ddd;\">{{ [\"Score Breakdown\"] }}</pre>\n\n\n\n<p><a href=\"https://docs.google.com/spreadsheets/d/1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU\" style=\"background: #0066cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;\">View All Leads</a></p>",
+        "options": {}
+      },
+      "id": "779c63d0-bdb3-4cbb-a35e-b705cf654804",
+      "name": "Send Lead Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1424,
+        128
+      ],
+      "webhookId": "7fc00dd2-b616-42d1-b370-13402929dc02",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4rgf3onoG15TrvnQ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "achusidesmond4@gmail.com",
+        "subject": "Lead Enrichment Failed",
+        "emailType": "text",
+        "message": "=Lead enrichment failed for:\\n\\nEmail: {{ $('Extract & Validate Lead').item.json.email }}\\nCompany: {{ $('Extract & Validate Lead').item.json.company }}\\n\\nError: {{ $json.error || 'Unknown error' }}\\n\\nTime: {{ $now.toISO() }}\\n\\nPlease check the workflow and add lead manually.",
+        "options": {}
+      },
+      "id": "2c0b1870-2b13-49a2-8584-daad96f524f6",
+      "name": "Send Error Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1648,
+        320
+      ],
+      "webhookId": "c57df523-e369-4cfc-8cf3-f87214839020",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4rgf3onoG15TrvnQ",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract & Validate Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Validate Lead": {
+      "main": [
+        [
+          {
+            "node": "Calculate Fit Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Fit Score": {
+      "main": [
+        [
+          {
+            "node": "Add Lead to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Lead to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Check If Successful",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Successful": {
+      "main": [
+        [
+          {
+            "node": "Format Notification Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Notification Data": {
+      "main": [
+        [
+          {
+            "node": "Send Lead Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Africa/Lagos",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "e5baafd4-7909-46fb-854c-7a129649ec3d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "420da16e8a4bbbd9d07a488b082e20b52badc29a41dd5a8a3840782b3e7ae978"
+  },
+  "id": "RWvqdcF2PBtijCpg",
+  "tags": []
+}
