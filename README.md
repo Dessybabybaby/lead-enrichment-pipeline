@@ -124,7 +124,15 @@ curl -X POST https://YOUR-N8N-URL/webhook/lead-enrichment \
   "source": "webinar signup"
 }
 ```
-
+**Input (Google Sheet):**
+```json
+{
+  "email": "sarah.johnson@microsoft.com",
+  "company": "Microsoft Corporation",
+  "role": "Chief Technology Officer",
+  "source": "referral"
+}
+```
 **Expected Output (Enriched Lead):**
 ```json
 {
