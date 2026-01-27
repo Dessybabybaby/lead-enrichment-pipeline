@@ -261,4 +261,3 @@ MIT License
 ---
 
 **If this pipeline accelerates your sales process, please star the repo!**
-```
