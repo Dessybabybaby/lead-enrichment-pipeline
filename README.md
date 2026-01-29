@@ -1,6 +1,6 @@
 # Lead Enrichment Pipeline
 
-> **Automatically enrich incoming leads with company data, verify emails, and route to the right sales rep**
+**Automatically enrich incoming leads with company data, verify emails, and route to the right sales rep**
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 [![n8n](https://img.shields.io/badge/n8n-workflow-FF6D5A)](https://n8n.io)
