@@ -1,139 +1,192 @@
 # Lead Enrichment Pipeline
 
-**Automatically enrich incoming leads with company data, verify emails, and route to the right sales rep**
+> Automated lead processing system using n8n to verify emails, enrich company data, score leads, and route to the right sales rep - without manual research
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![n8n](https://img.shields.io/badge/n8n-workflow-FF6D5A)](https://n8n.io)
 
-## Problem Statement
+![Workflow Screenshot](media/workflow-screenshot-lep.png)
 
-Sales teams waste 4-6 hours weekly researching leads manually:
-- Copy-pasting emails into verification tools
-- Looking up company info on LinkedIn/website
-- Manually scoring leads for prioritization
-- Routing leads to reps based on territory/industry
-- No standardized data capture process
+---
 
-**Real cost:** 20+ hours/month per sales rep = $6,000+ annually in lost selling time.
+## Table of Contents
 
-## Solution
+- [Overview](#overview)
+- [Features](#features)
+- [Demo](#demo)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Expected Output](#expected-output)
+- [Sample Data](#sample-data)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
-This n8n workflow automatically enriches every incoming lead with:
--  **Email verification** - Valid/invalid status, deliverability score
--  **Company intelligence** - Industry, size, revenue, tech stack
--  **Lead scoring** - Auto-calculated fit score (0-100)
--  **Smart routing** - Territory-based rep assignment
--  **CRM integration** - Auto-create enriched records in Google Sheet/Airtable/Notion
--  **Email/Slack notifications** - Alert assigned rep with lead card
+---
 
-**Impact:** 6 hrs/week → 10 min/week (97% time reduction)
-**Cost:** $0/month (uses only Google Workspace free tier)
+## Overview
 
-## Architecture
+**Problem:** Sales teams waste 4–6 hours weekly researching leads manually, copy-pasting emails into verification tools, looking up company info on LinkedIn, manually scoring leads for prioritization, and routing them to reps with no standardized process. That's 20+ hours per month per rep and over $6,000 annually in lost selling time.
 
-![Architecture Diagram](docs/architecture-diagram.png)
+**Solution:** This n8n workflow automatically enriches every incoming lead the moment they enter the pipeline. It verifies the email, pulls company intelligence, calculates a fit score, assigns the right rep, creates a CRM record, and sends an instant notification, all at zero monthly cost using free-tier tools.
 
-**Workflow Steps:**
-1. **Trigger:** Webhook (receives form submissions or from Typeform/Google Forms)
-2. **Extract Lead Data:** Parse email/lead data, company, role, source
-3. **Email Verification:** Hunter.io API - verify + get LinkedIn profile/email regex validation
-4. **Company Enrichment:** Domain-based heuristics/Clearbit/BuiltWith API - industry, size, tech stack
-5. **Lead Scoring:** Calculate fit score based on criteria (industry, company size, role)
-6. **Rep Assignment:** Route based on company size rules/territory rules
-7. **Create CRM Record:** Airtable/Notion with enriched data/append to google sheet
-8. **Notify Rep:** Slack DM with lead summary card/Gmail alert to assigned rep with read card
-9. **Error Handling:** Log failed enrichments, flag for manual review/Email alert if workflow fails
+**Technology:**
+- n8n (workflow orchestration - self-hosted or cloud)
+- Hunter.io (email verification - free tier: 25/month)
+- Clearbit OR BuiltWith (company enrichment - free tiers)
+- Google Sheets / Airtable / Notion (CRM storage - all free tiers)
+- Slack / Gmail (rep notifications)
 
-**Tech Stack:**
-- n8n (workflow orchestration)
-- Hunter.io (email verification - free: 25/month)/Google Sheets (CRM database - free)
-- Clearbit (company data - limited free tier) OR BuiltWith (free tier)/Google Sheets (CRM database - free)
-- Airtable/Google Sheets (CRM storage - free tier)
-- Slack/Email (notifications)
+> **Note:** This workflow is designed to run at $0/month using Google Workspace free tier and optional free API tiers.
 
-## Quick Start
+---
 
-### Prerequisites
-- n8n installed
-- Google account (for Sheets + Gmail)
-- Hunter.io account (free tier: 25 verifications/month). Optional
-- Clearbit account OR BuiltWith account (both have free tiers). Optional
-- Airtable account (free). Optional
-- Slack workspace. Optional
+## Features
 
-### Installation
+- Webhook-based lead capture from any form (Typeform, Google Forms, website)
+- Email verification with deliverability scoring and corporate domain detection
+- Company intelligence enrichment (industry, size, revenue, tech stack)
+- Automated fit scoring from 0–100 based on configurable criteria
+- Territory and company-size-based rep assignment
+- Auto-created CRM records in Google Sheets, Airtable, or Notion
+- Instant Slack DM or Gmail alert to the assigned rep with full lead card
+- Error logging and manual review flagging for failed enrichments
 
-**Option 1: Copy Google Sheet Template**
-1. Open: [Lead Enrichment Database Template](https://docs.google.com/spreadsheets/d/1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU/edit?usp=sharing)
-2. File → Make a copy
-3. Name it: "My Leads Database"
-   
-**Option 2: Import Workflow**
+---
+
+## Demo
+
+### Audio Case Study (Coming Soon)
+
+### Visual Demo
+![Demo GIF](docs/demo.gif)
+
+---
+
+## Prerequisites
+
+**Required:**
+- **n8n instance** (self-hosted via Docker OR n8n cloud)
+  - Self-hosted install: https://docs.n8n.io/hosting/installation/docker/
+  - Cloud trial: https://n8n.io/cloud
+- **Google account** for Sheets and Gmail integration
+
+**Optional (all free tiers available):**
+- Hunter.io account - email verification (25/month free)
+- Clearbit OR BuiltWith account - company enrichment
+- Airtable account - alternative CRM storage
+- Slack workspace - rep notifications
+
+---
+
+## Installation
+
+### Quick Start: Import Workflow (5 minutes)
+
+1. **Copy the Google Sheet CRM template:**
+   - Open: [Lead Enrichment Database Template](https://docs.google.com/spreadsheets/d/1GZq6VN9YdE3qZohacxJiHZAie8o42CwRE6_7yT5DAEU/edit?usp=sharing)
+   - Click **File → Make a copy**
+   - Rename it: `My Leads Database`
+
+2. **Download workflow export:**
+   - Go to: [Releases](https://github.com/Dessybabybaby/lead-enrichment-pipeline/releases)
+   - Download `lead-enrichment-workflow.json`
+
+3. **Import to n8n:**
+   - Open n8n UI
+   - Click **"Workflows"** → **"Add Workflow"** → **"Import from File"**
+   - Select downloaded `lead-enrichment-workflow.json`
+   - Click **"Import"**
+
+4. **Configure Google credentials:**
+   - Click the **"Gmail"** node → **"Select Credential"** → authorize your Google account
+   - Click the **"Google Sheets"** node → same OAuth2 flow
+   - Update the Sheet ID in the **"Add Lead to Sheet"** node with your copied template's ID
+
+5. **Configure optional API credentials:**
+   - **Hunter.io:** Retrieve API key from your Hunter.io dashboard → paste in the **"Verify Email"** node
+   - **Clearbit / BuiltWith:** Retrieve API key → paste in the **"Enrich Company"** node
+   - **Airtable:** Create a personal access token → add in n8n Credentials
+   - **Slack:** Authorize via OAuth2 → confirm bot is added to your target channel
+
+6. **Configure the webhook:**
+   - Copy the webhook URL from the **"Webhook Trigger"** node
+   - Paste it into your form tool (Typeform, Google Forms, or website contact form)
+
+7. **Activate workflow:**
+   - Toggle **Active** (top-right of n8n UI)
+
+8. **Test manually:**
 ```bash
-curl -O https://raw.githubusercontent.com/Dessybabybaby/lead-enrichment-pipeline/main/workflows/lead-enrichment-workflow.json
-# Import in n8n UI
+   curl -X POST https://YOUR-N8N-URL/webhook/lead-enrichment \
+     -H "Content-Type: application/json" \
+     -d '{
+       "email": "test@techcorp.io",
+       "company": "TechCorp",
+       "role": "VP Sales",
+       "source": "webinar"
+     }'
+```
+   Verify the enriched record appears in your Google Sheet or Airtable base.
+
+---
+
+## Usage
+
+### Automatic Execution
+Workflow triggers instantly on every webhook submission from your connected form or website.
+
+### Manual Execution
+1. Open the workflow in n8n
+2. Click **Execute Workflow**
+3. Observe each node's execution in real time
+4. Check Google Sheets / Airtable for the enriched lead record and Slack / Gmail for the rep notification
+
+### Workflow Logic
+
+1. Webhook receives lead submission (email, company, role, source)
+2. Parse and extract all lead fields
+3. Verify email - check format, deliverability, and corporate domain
+4. Enrich company - detect industry, size, revenue, and tech stack
+5. Calculate fit score (0–100) based on role, industry, size, and source
+6. Assign rep based on territory and company size rules
+7. Create enriched CRM record in Google Sheets / Airtable / Notion
+8. Send Slack DM or Gmail alert to assigned rep with full lead card
+9. On failure: log error, flag for manual review, send alert
+
+### How Enrichment Works (No API Required)
+
+**Email Validation**
+- Regex pattern matching for correct format
+- Corporate domain detection (excludes gmail, yahoo, hotmail)
+
+**Industry Detection**
+Keyword matching from company name:
+- "Tech", "Software", "Cloud" → Technology
+- "Bank", "Finance", "Capital" → Finance
+- "Health", "Medical", "Pharma" → Healthcare
+
+**Company Size Estimation**
+- Known large companies (Microsoft, Google, etc.) → 1000+
+- Free email domains (gmail.com) → 1–10 (startup/freelancer)
+- Custom domain → 51–200 (default mid-size)
+
+**Scoring Algorithm**
+```
+Total Score (0–100):
+- Email valid + corporate domain:     25 points
+- Company size (ideal 201–1000):      25 points
+- Role (C-level / VP / Director):     30 points
+- Industry (Technology / Finance):    20 points
+- Source quality (Referral/Webinar):  10 points
 ```
 
-**Option 3: Manual Build (Follow guide below)**
+---
 
-### Configuration
+## Expected Output
 
-1. **Set Google Credentials**
-   - Gmail node → OAuth2 → Connect account
-   - Google Sheets node → OAuth2 → Connect account
-   - Update Sheet ID in "Add Lead to Sheet" node
-  
-2. **Set API Credentials:**
-   - Hunter.io: Get API key from dashboard
-   - Clearbit: Get API key (or use BuiltWith as alternative)
-   - Airtable: Create personal access token
-   - Slack: OAuth2 authorization
-
-3. **Create Airtable Base:**
-   - Copy template: [https://www.airtable.com/]
-   - Required fields: Name, Email, Company, Role, Industry, Size, Score, Status, Rep, Source
-
-4. **Configure Webhook:**
-   - Copy webhook URL from n8n
-   - Add to your form (Typeform/Google Forms/website)
-
-5. **Test Execution:**
-   For Google Sheet:
-```bash
-curl -X POST https://YOUR-N8N-URL/webhook/lead-enrichment \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@techcorp.io",
-    "company": "TechCorp",
-    "role": "VP Sales",
-    "source": "webinar"
-  }'
-```
-   For Airtable:
-   - Submit test form with sample lead
-   - Verify enrichment + CRM record created
-
-## Sample Data
-
-**Input (Webhook Payload):**
-```json
-{
-  "email": "john.doe@techcorp.io",
-  "company": "TechCorp",
-  "role": "VP Engineering",
-  "source": "webinar signup"
-}
-```
-**Input (Google Sheet):**
-```json
-{
-  "email": "sarah.johnson@microsoft.com",
-  "company": "Microsoft Corporation",
-  "role": "Chief Technology Officer",
-  "source": "referral"
-}
-```
-**Expected Output (Enriched Lead):**
+**Enriched Lead Record (Webhook Version)**
 ```json
 {
   "email": "john.doe@techcorp.io",
@@ -151,7 +204,8 @@ curl -X POST https://YOUR-N8N-URL/webhook/lead-enrichment \
   "enrichedAt": "2026-01-18T10:30:00Z"
 }
 ```
-**Output:** (Google Sheet Version)
+
+**Enriched Lead Record (Google Sheet Version)**
 ```json
 {
   "timestamp": "2026-01-18T14:30:00Z",
@@ -165,98 +219,96 @@ curl -X POST https://YOUR-N8N-URL/webhook/lead-enrichment \
   "companySize": "1000+",
   "fitScore": 95,
   "grade": "A - Hot Lead",
-  "scoreBreakdown": "Valid email format: +15\nCorporate email: +10\nIdeal company size (1000+): +18\nC-level executive: +30\nTarget industry (Tech): +20\nReferral source: +10",
+  "scoreBreakdown": "Valid email: +15 | Corporate domain: +10 | Ideal size: +18 | C-level: +30 | Target industry: +20 | Referral: +10",
   "assignedRep": "Sarah (Enterprise)",
   "status": "New"
 }
 ```
 
-## Success Metrics
-
-After 30 days with 100 leads:
-- **Enrichment rate:** 82% (82 leads fully enriched)
-- **Cost:** $0 (vs $150-$300/month for API-based tools)
-- **Time saved:** 6 hrs/week → 10 min/week (97% reduction)
-- **Lead response time:** 45 min avg → 8 min avg (82% faster)
-- **Scoring accuracy:** 78% industry detection, 85% company size estimation, 89% (validated by sales feedback)
-
-## How It Works (No APIs Magic)
-
-### Email Validation
-- Regex pattern matching for format
-- Corporate domain detection (excludes gmail/yahoo/hotmail)
-
-### Industry Detection
-- Keyword matching from company name:
-  - "Tech", "Software", "Cloud" → Technology
-  - "Bank", "Finance", "Capital" → Finance
-  - "Health", "Medical", "Pharma" → Healthcare
-
-### Company Size Estimation
-- Known large companies list (Microsoft, Google, etc.) → 1000+
-- Free email domains (gmail.com) → 1-10 (startup/freelance)
-- Custom domain → 51-200 (default mid-size)
-
-### Scoring Algorithm
+**Slack / Email Notification**
 ```
-Total Score (0-100):
-- Email valid + corporate: 25 points
-- Company size (ideal 201-1000): 25 points
-- Role (C-level/VP/Director): 30 points
-- Industry (Technology/Finance): 20 points
-- Source quality (Referral/Webinar): 10 points
+[NEW LEAD — Score: 95 | Grade: A - Hot Lead]
+
+Name:     Sarah Johnson
+Email:    sarah.johnson@microsoft.com
+Company:  Microsoft Corporation (1000+ employees)
+Role:     Chief Technology Officer
+Industry: Technology
+Source:   Referral
+
+Assigned To: Sarah (Enterprise)
+Action: Follow up within 1 hour
 ```
 
-## Customization
+---
 
-No APIs
-**Add more industries:**
-Edit `Extract & Validate Lead` node, add to industry detection:
-```javascript
-else if (companyLower.includes('YOUR_KEYWORD')) {
-  industry = 'YOUR_INDUSTRY';
+## Sample Data
+
+Test the workflow with sample payloads before going to production.
+
+**Webhook Input:**
+```json
+{
+  "email": "john.doe@techcorp.io",
+  "company": "TechCorp",
+  "role": "VP Engineering",
+  "source": "webinar signup"
 }
 ```
 
-**Change scoring weights:**
-Modify `Calculate Fit Score` node point allocations
+**Google Sheet Input:**
+```json
+{
+  "email": "sarah.johnson@microsoft.com",
+  "company": "Microsoft Corporation",
+  "role": "Chief Technology Officer",
+  "source": "referral"
+}
+```
 
-**Add more reps:**
-Update rep assignment logic + Google Sheet validation dropdown
-
-**Common Modifications:**
-- **Add more data sources:** Integrate Apollo.io, ZoomInfo APIs
-- **Custom scoring logic:** Modify Function node criteria (job title keywords, company size thresholds)
-- **Multi-rep routing:** Add round-robin distribution for inbound leads
-- **Lead nurturing:** Trigger email sequence for low-score leads
+---
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Email verification fails | Check Hunter.io API key, verify monthly quota not exceeded |
-| Company data returns empty | Try alternative API (BuiltWith if Clearbit fails), check company name spelling |
-| Airtable record creation fails | Verify base ID, check field names match exactly (case-sensitive) |
-| No Slack notification | Check bot is added to channel, verify OAuth scopes include `chat:write` |
-| No data in Sheet | Check Sheet ID, verify OAuth2 credentials |
-| No email received | Check Gmail OAuth, verify recipient email address |
-| Score always low | Review scoring logic, check test data quality |
-| Webhook not triggering | Verify workflow is Active, check webhook URL |
+| Email verification fails | Check Hunter.io API key; verify monthly quota is not exceeded |
+| Company data returns empty | Try BuiltWith if Clearbit fails; check company name spelling |
+| Airtable record not created | Verify base ID; confirm field names match exactly (case-sensitive) |
+| No Slack notification | Confirm bot is added to channel; verify OAuth scope includes `chat:write` |
+| No data in Sheet | Check Sheet ID; re-authorize Google Sheets OAuth2 credentials |
+| No email received | Check Gmail OAuth; verify recipient address is correct |
+| Score always low | Review scoring logic in Function node; check test data quality |
+| Webhook not triggering | Confirm workflow is set to Active; verify webhook URL in your form |
+
+---
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
-## Credits
+You are free to:
+- ✓ Use commercially
+- ✓ Modify
+- ✓ Distribute
+- ✓ Private use
 
-- Built by [Desmond Achusi](https://linkedin.com/in/achusi-desmond)
-- Zero-cost alternative to expensive enrichment APIs
+---
 
-## Contact
+## Acknowledgments
 
+- Built with [n8n.io](https://n8n.io) — workflow automation platform
+- Zero-cost alternative to expensive enrichment tools like Apollo.io and ZoomInfo
+- Part of a 30-day automation portfolio sprint
+
+---
+
+## Contact & Portfolio
+
+**Creator:** Achusi Desmond
+- Portfolio: [My Story](https://achusi-desmond.vercel.app/)
+- GitHub: [Dessybabybaby](https://github.com/Dessybabybaby)
 - LinkedIn: [Achusi Desmond](https://linkedin.com/in/achusi-desmond)
-- Email: achusidesmond4@gmail.com
-- Portfolio: [GitHub Projects](https://github.com/Dessybabybaby)
 
 ---
 
