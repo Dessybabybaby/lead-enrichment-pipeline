@@ -297,7 +297,7 @@ You are free to:
 
 ## Acknowledgments
 
-- Built with [n8n.io](https://n8n.io) — workflow automation platform
+- Built with [n8n.io](https://n8n.io) - workflow automation platform
 - Zero-cost alternative to expensive enrichment tools like Apollo.io and ZoomInfo
 - Part of a 30-day automation portfolio sprint
 
